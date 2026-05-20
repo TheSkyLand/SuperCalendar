@@ -7,15 +7,16 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
 activityCompose = "1.13.0"
 kotlin = "2.2.10"
-composeBom = "2024.09.00"
+ksp = "2.2.10-2.0.2"
+composeBom = "2026.05.01"
 navigationCompose = "2.9.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
-androidx-room-compiler = { module = "androidx.room:room-compiler" }
-androidx-room-ktx = { module = "androidx.room:room-ktx" }
-androidx-room-runtime = { module = "androidx.room:room-runtime" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version = "2.6.1" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version = "2.6.1" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version = "2.6.1" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -29,8 +30,9 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-
+androidx-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core", version = "1.7.8" }
+androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version = "1.7.8" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-
+com-google-devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

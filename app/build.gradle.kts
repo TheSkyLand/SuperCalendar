@@ -1,8 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.com.google.devtools.ksp) // Используются только точки
 }
+
 
 android {
     namespace = "com.example.supercalendar"
@@ -40,6 +41,8 @@ android {
     }
 }
 
+
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -49,6 +52,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // Новые библиотеки для починки иконок бургера и списка
+    implementation(libs.androidx.material.icons.core)
+    implementation(libs.androidx.material.icons.extended)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -58,6 +66,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx) // Для поддержки Coroutines и Flow
+    implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 }

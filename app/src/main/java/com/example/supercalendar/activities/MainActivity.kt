@@ -2,6 +2,7 @@ package com.example.supercalendar.activities
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,12 +14,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -30,6 +34,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,61 +45,91 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.supercalendar.ui.theme.SuperCalendarTheme
 import java.time.Month
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.supercalendar.data.AppDatabase
+import java.time.LocalDate
+import java.time.LocalDateTime
 
+enum class LookType { WeeklyView, MonthlyView, YearView }
 
-enum class LookType {DailyView, MonthlyView, YearView}
+val allMonths: List<Month> = Month.entries.toList()
+val currentMonth = LocalDate.now().month.toString()
 
-val currentLook = LookType.DailyView
+val currentLook = LookType.WeeklyView
 
+val days = LocalDateTime.now()
+
+fun CheckToday(day : LocalDateTime, currentDay : Int): Boolean {
+
+    if(day.dayOfMonth == currentDay){
+        return true
+    }
+
+    return false
+}
 
 @Composable
 fun appNavigation(): NavHostController {
-    // 1. Создаем контроллер навигации
     val navController = rememberNavController()
-
-    // 2. Создаем контейнер и задаем стартовый экран (startDestination)
     NavHost(navController = navController, startDestination = "calendar") {
-
-        // Главный экран календаря
         composable("calendar") {
-            // Передаем navController внутрь, чтобы экран мог вызывать другие экраны
             CalendarWrap(navController)
         }
-
-        // Глубокий экран конкретного события
-        composable("event_details") {
-            DayDetailsScreen(navController)
+        composable(
+            route = "event_details/{date}",
+            arguments = listOf(navArgument("date") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val selectedDate = backStackEntry.arguments?.getString("date") ?: "unknown date"
+            DayDetailsScreen(date = selectedDate, navController = navController)
         }
     }
-
     return navController
 }
 
 @Composable
-fun DayDetailsScreen(x0: NavHostController) {
-    TODO("Not yet implemented")
+fun DayDetailsScreen(date: String, navController: NavHostController) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "Детали дня",
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Выбранная дата: $date",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = { navController.popBackStack() }) {
+                Text("Назад в календарь")
+            }
+        }
+    }
 }
 
-
 class MainActivity : ComponentActivity() {
-    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Инициализируем Room
+        AppDatabase.getDatabase(applicationContext)
+
         enableEdgeToEdge()
         setContent {
             SuperCalendarTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
-                    // Передали paddingValues из Scaffold, чтобы контент не залезал под системные бары
                     Box(modifier = Modifier.padding(paddingValues)) {
-                        val navController = appNavigation()
-                        CalendarWrap(navController)
+                        appNavigation()
                     }
                 }
             }
@@ -102,8 +138,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CalendarHeader(onLookChanged: (LookType) -> Unit){
-  Row(
+fun CalendarHeader(onLookChanged: (LookType) -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -114,32 +150,29 @@ fun CalendarHeader(onLookChanged: (LookType) -> Unit){
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(8.dp)
         ) {
-            // Иконка бургера
             Icon(
                 imageVector = Icons.Default.Menu,
                 contentDescription = "Menu",
-                modifier = Modifier.size(18.dp) // Аккуратный размер для иконки в кнопке
+                modifier = Modifier.size(18.dp)
             )
-
-            // Небольшой отступ между иконкой и текстом
             Spacer(modifier = Modifier.width(8.dp))
         }
         Button(
-            onClick = {onLookChanged(LookType.DailyView)},
+            onClick = { onLookChanged(LookType.WeeklyView) },
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(text = "Daily", maxLines = 1)
         }
         Button(
-            onClick = {onLookChanged(LookType.MonthlyView)},
+            onClick = { onLookChanged(LookType.MonthlyView) },
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(text = "Monthly", maxLines = 1)
         }
         Button(
-            onClick = {onLookChanged(LookType.YearView)},
+            onClick = { onLookChanged(LookType.YearView) },
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(8.dp)
         ) {
@@ -148,76 +181,115 @@ fun CalendarHeader(onLookChanged: (LookType) -> Unit){
     }
 }
 
-
 @Composable
-fun CalendarElement(day: Number, month: String, navController: NavController){
-    Row(
+fun CalendarElement(day: Int, monthName: String, year: Int, navController: NavController) {
+    val formattedDate = "$year-$monthName-$day"
+
+    // Аналог тернарного оператора: если это сегодня, подсвечиваем контейнер цветом PrimaryContainer
+    val cellBackground = if (CheckToday(day = LocalDateTime.now(), currentDay = day )) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    Box(
         modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(cellBackground) // Применили цвет
             .clickable {
-                navController.navigate("");
-            }
-            .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 16.dp) // Внешний отступ между карточками
-            .clip(RoundedCornerShape(12.dp))             // Срезаем углы, чтобы эффект клика не вылезал наружу
-            .background(MaterialTheme.colorScheme.surfaceVariant) // Задаем фон карточки
-            .clickable(onClick = { })                     // Делаем кликабельным (эффект волны будет внутри)
-            .padding(16.dp),                              // Внутренний отступ для текста
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+                navController.navigate("event_details/$formattedDate")
+            },
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "День: $day",
+            text = "$day",
             style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        )
-        Text(
-            text = month,
-            style = MaterialTheme.typography.labelLarge.copy(
-                letterSpacing = 1.sp,
-                color = MaterialTheme.colorScheme.primary
+                fontWeight = if (CheckToday(day = LocalDateTime.now(), currentDay = day )) FontWeight.ExtraBold else FontWeight.Bold,
+                color = if (CheckToday(day = LocalDateTime.now(), currentDay = day )) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
     }
 }
 
-
-
 @Composable
 fun CalendarWrap(navController: NavHostController) {
-    var currentLook by remember { mutableStateOf(LookType.DailyView) }
+    var currentLook by remember { mutableStateOf(LookType.WeeklyView) }
+    // Получаем текущее время локально внутри Composable-контекста
+    val timeInstance = remember { LocalDateTime.now() }
+
     Column(modifier = Modifier.fillMaxSize()) {
-        CalendarHeader(onLookChanged = {newLook -> currentLook = newLook})
-        when(currentLook){
-            LookType.DailyView -> {}
+        CalendarHeader(onLookChanged = { newLook -> currentLook = newLook })
+        when (currentLook) {
+            LookType.WeeklyView -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Дневной/Недельный вид")
+                }
+            }
+
             LookType.MonthlyView -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Month.entries.forEach { month ->
-                        items(1) { index ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = timeInstance.month.toString(),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(7),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(timeInstance.month.length(timeInstance.toLocalDate().isLeapYear)) { index ->
                             CalendarElement(
                                 day = index + 1,
-                                month = month.toString(),
-                                navController = appNavigation()
+                                monthName = timeInstance.month.toString(),
+                                year = timeInstance.year,
+                                navController = navController
                             )
                         }
                     }
                 }
             }
-            LookType.YearView -> {}
+
+            LookType.YearView -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(Month.entries.size) { index ->
+                        val currentMonthObj = Month.entries[index]
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .clickable { currentLook = LookType.MonthlyView },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = currentMonthObj.toString().take(3),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
 fun CalendarPreview() {
     SuperCalendarTheme {
-        CalendarWrap(navController = appNavigation())
+        CalendarWrap(navController = rememberNavController())
     }
 }
