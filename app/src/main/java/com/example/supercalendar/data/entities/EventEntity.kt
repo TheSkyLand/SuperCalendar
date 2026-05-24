@@ -1,16 +1,15 @@
-package com.example.supercalendar.data.entities
-
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
 
-@Entity(tableName = "calendar_events")
+@Entity(tableName = "events")
 data class EventEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
-    val title: String,
-    val description: String,
-    // Храним дату в формате "YYYY-MM-DD" (например, "2026-05-20")
-    val date: String,
-    val year: Int,
-    val month: Int // 1 .. 12
-)
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val date: String, // format matching "$year-$monthName-$day"
+    val description: String
+) {
+
+}
+

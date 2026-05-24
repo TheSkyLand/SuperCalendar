@@ -1,8 +1,7 @@
 package com.example.supercalendar.activities
 
-import android.annotation.SuppressLint
+import EventEntity
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,17 +20,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -39,10 +43,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.supercalendar.ui.theme.SuperCalendarTheme
 import java.time.Month
 import androidx.navigation.NavController
@@ -53,17 +60,18 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.supercalendar.data.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
-
 enum class LookType { WeeklyView, MonthlyView, YearView }
 
 val allMonths: List<Month> = Month.entries.toList()
 val currentMonth = LocalDate.now().month.toString()
 
 val currentLook = LookType.WeeklyView
-
-val days = LocalDateTime.now()
 
 fun CheckToday(day : LocalDateTime, currentDay : Int): Boolean {
 
@@ -93,9 +101,22 @@ fun appNavigation(): NavHostController {
 }
 
 @Composable
-fun DayDetailsScreen(date: String, navController: NavHostController) {
+fun DayDetailsScreen(
+    date: String,
+    navController: NavHostController,
+    viewModel: DayDetailsViewModel = viewModel() // Automates lifecycle management
+) {
+    val context = LocalContext.current
+    var eventInput by remember { mutableStateOf("") }
+    val currentEvents by viewModel.savedEvents.collectAsState()
+
+    // Trigger loading once when screen opens or date string shifts
+    LaunchedEffect(date) {
+        viewModel.loadEvents(context, date)
+    }
+
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -103,14 +124,61 @@ fun DayDetailsScreen(date: String, navController: NavHostController) {
                 text = "Детали дня",
                 style = MaterialTheme.typography.headlineMedium
             )
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Выбранная дата: $date",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary
             )
+
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { navController.popBackStack() }) {
+
+            // Text box input where the user writes down their schedule items
+            OutlinedTextField(
+                value = eventInput,
+                onValueChange = { eventInput = it },
+                label = { Text("Введите событие") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // HERE is your completed request button
+            Button(
+                onClick = {
+                    viewModel.addEvent(context, date, eventInput)
+                    eventInput = "" // Wipes input field on database submission
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Добавить событие")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "События на этот день:", fontWeight = FontWeight.Bold)
+
+            // Dynamic scroll container reading updates out of the DB layer
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(currentEvents) { event ->
+                    Text(
+                        text = "• ${event.description}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                    Button(
+                        onClick = (event.deleteEvent())
+                    ) {
+                        Text("delete")
+                    }
+                }
+            }
+
+            Button(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Назад в календарь")
             }
         }
@@ -209,6 +277,31 @@ fun CalendarElement(day: Int, monthName: String, year: Int, navController: NavCo
                 color = if (CheckToday(day = LocalDateTime.now(), currentDay = day )) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
+    }
+}
+
+class DayDetailsViewModel : ViewModel() {
+
+    private val _savedEvents = MutableStateFlow<List<EventEntity>>(emptyList())
+    val savedEvents: StateFlow<List<EventEntity>> = _savedEvents
+
+    // Automatically load existing events when opening the details screen
+    fun loadEvents(context: android.content.Context, date: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(context)
+            _savedEvents.value = db.eventDao.getEventsForDate(date)
+        }
+    }
+
+    // Insert an event and refresh the displayed list
+    fun addEvent(context: android.content.Context, date: String, text: String) {
+        if (text.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(context)
+            db.eventDao.insertEvent(EventEntity(date = date, description = text))
+            // Reload updated data
+            loadEvents(context, date)
+        }
     }
 }
 
