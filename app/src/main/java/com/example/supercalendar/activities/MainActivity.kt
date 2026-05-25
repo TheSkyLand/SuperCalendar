@@ -1,6 +1,5 @@
 package com.example.supercalendar.activities
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -42,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.supercalendar.ui.theme.SuperCalendarTheme
 import java.time.Month
 import androidx.navigation.NavController
@@ -59,11 +57,26 @@ import java.time.LocalDateTime
 enum class LookType { WeeklyView, MonthlyView, YearView }
 
 val allMonths: List<Month> = Month.entries.toList()
-val currentMonth = LocalDate.now().month.toString()
+val currentMonth: Int = LocalDate.now().month.value
 
-val currentLook = LookType.WeeklyView
+val initMonth = allMonths[currentMonth]
+var monthSwitch: Int = initMonth.value;
+var currentPage = monthSwitch;
+fun switchMonth(page: Int) : Month {
+    currentPage += page;
+    if (currentPage <= 0){
+        currentPage = 11
+    } else if(currentPage >= 11 ) {
+        currentPage = 0
+    }
 
-val days = LocalDateTime.now()
+    Log.d("page", page.toString())
+    Log.d("monthSwitch", monthSwitch.toString())
+    Log.d("currentPage", currentPage.toString())
+    Log.d("allMonths", allMonths[currentPage].toString())
+
+    return allMonths[currentPage]
+}
 
 fun CheckToday(day : LocalDateTime, currentDay : Int): Boolean {
 
@@ -73,9 +86,9 @@ fun CheckToday(day : LocalDateTime, currentDay : Int): Boolean {
 
     return false
 }
-
 @Composable
 fun appNavigation(): NavHostController {
+    switchMonth(currentMonth)
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "calendar") {
         composable("calendar") {
@@ -121,7 +134,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Инициализируем Room
         AppDatabase.getDatabase(applicationContext)
 
         enableEdgeToEdge()
@@ -230,11 +242,22 @@ fun CalendarWrap(navController: NavHostController) {
             LookType.MonthlyView -> {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Text(
-                        text = timeInstance.month.toString(),
+                        text = timeInstance.year.toString() + " / " + timeInstance.month.toString() + " " + "(${currentMonth})" + " / " + timeInstance.dayOfMonth ,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+
+                        Button(
+                            onClick = { switchMonth(1) },
+                            //modifier = Modifier.fillMaxSize(),
+                        ) { Text("<") }
+                        Button(
+                        onClick = { switchMonth(-1) },
+                        //modifier = Modifier.fillMaxSize(),
+                    )  { Text(">") }
+
+
 
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(7),
