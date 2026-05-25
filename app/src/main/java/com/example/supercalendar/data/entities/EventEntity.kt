@@ -10,6 +10,6 @@ data class EventEntity(
     val date: String, // format matching "$year-$monthName-$day"
     val description: String
 ) {
-
+ 
 }
 
